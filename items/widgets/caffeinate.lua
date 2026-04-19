@@ -1,27 +1,19 @@
 local colors = require("colors")
-local settings = require("settings")
 
 local caffeine = sbar.add("item", "widgets.caffeine", {
   position = "right",
   update_freq = 10,
   icon = {
     string = "􀸙",
-    padding_left = 9,
-    padding_right = 6,
+    padding_left = 10,
+    padding_right = 10,
     color = colors.grey,
   },
-  label = {
-    string = "Sleep",
-    padding_right = 9,
-    color = colors.grey,
-    font = {
-      family = settings.font.text,
-      style = settings.font.style_map["Semibold"],
-      size = 12.0,
-    },
-  },
+  label = { drawing = false },
   background = {
     color = colors.bg1,
+    corner_radius = 9,
+    height = 28,
   },
 })
 
@@ -31,10 +23,6 @@ local function refresh()
 
     caffeine:set({
       icon = { color = active and colors.yellow or colors.grey },
-      label = {
-        string = active and "Awake" or "Sleep",
-        color = active and colors.white or colors.grey,
-      },
     })
   end)
 end
@@ -45,13 +33,9 @@ caffeine:subscribe("mouse.clicked", function()
   sbar.exec("if pgrep -f 'caffeinate -dimsu' >/dev/null; then pkill -f 'caffeinate -dimsu'; else nohup caffeinate -dimsu >/dev/null 2>&1 & fi", refresh)
 end)
 
-sbar.add("bracket", "widgets.caffeine.bracket", { caffeine.name }, {
-  background = { color = colors.bg1 }
-})
-
 sbar.add("item", "widgets.caffeine.padding", {
   position = "right",
-  width = settings.group_paddings,
+  width = 5,
 })
 
 refresh()

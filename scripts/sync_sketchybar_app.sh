@@ -6,14 +6,14 @@ APP_DIR="$CONFIG_DIR/SketchyBar.app"
 APP_BIN="$APP_DIR/Contents/MacOS/sketchybar"
 PLIST="$HOME/Library/LaunchAgents/homebrew.mxcl.sketchybar.plist"
 BREW_BIN="$(brew --prefix sketchybar)/bin/sketchybar"
+SKETCHYBAR_VERSION="$("$BREW_BIN" --version | sed 's/^sketchybar-v//')"
 
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
 cp "$BREW_BIN" "$APP_BIN"
 chmod +x "$APP_BIN"
 
-if [[ ! -f "$APP_DIR/Contents/Info.plist" ]]; then
-  cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
+cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -31,15 +31,14 @@ if [[ ! -f "$APP_DIR/Contents/Info.plist" ]]; then
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>2.23.0</string>
+  <string>$SKETCHYBAR_VERSION</string>
   <key>CFBundleVersion</key>
-  <string>2.23.0</string>
+  <string>$SKETCHYBAR_VERSION</string>
   <key>LSBackgroundOnly</key>
   <true/>
 </dict>
 </plist>
 PLIST
-fi
 
 codesign --force --deep --sign - --identifier git.felix.sketchybar "$APP_DIR"
 

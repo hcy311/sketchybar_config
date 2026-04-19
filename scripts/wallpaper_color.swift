@@ -10,7 +10,9 @@ struct Bucket {
   var count = 0.0
 }
 
-let fallback = "0xA63B302F"
+let globalDefaults = UserDefaults.standard.persistentDomain(forName: UserDefaults.globalDomain)
+let isDark = globalDefaults?["AppleInterfaceStyle"] as? String == "Dark"
+let fallback = isDark ? "0x8A3B302F" : "0x8AF6EEE7"
 
 func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {
   return max(lower, min(upper, value))
@@ -74,8 +76,8 @@ else {
 let bitmap = NSBitmapImageRep(cgImage: cgImage)
 let width = cgImage.width
 let height = cgImage.height
-let samples = 40
-let bucketCount = 36
+let samples = 48
+let bucketCount = 48
 
 var buckets = Array(repeating: Bucket(), count: bucketCount)
 
@@ -93,8 +95,9 @@ for xIndex in 0..<samples {
     let blue = color.blueComponent
     let hsb = rgbToHsb(red: red, green: green, blue: blue)
 
-    // Material You-like seed selection: ignore near-neutral, too dark, and blown-out pixels.
-    if hsb.saturation < 0.16 || hsb.brightness < 0.18 || hsb.brightness > 0.92 {
+    // Material You-like seed selection: prefer colorful mid-tones over neutral,
+    // overexposed, or crushed-black pixels.
+    if hsb.saturation < 0.14 || hsb.brightness < 0.12 || hsb.brightness > 0.94 {
       continue
     }
 
@@ -112,8 +115,14 @@ let best = buckets.enumerated().max { lhs, rhs in
   let left = lhs.element
   let right = rhs.element
 
-  let leftScore = left.count * pow(max(left.saturation / max(left.count, 1), 0.01), 1.35)
-  let rightScore = right.count * pow(max(right.saturation / max(right.count, 1), 0.01), 1.35)
+  let leftSat = left.saturation / max(left.count, 1)
+  let rightSat = right.saturation / max(right.count, 1)
+  let leftBright = left.brightness / max(left.count, 1)
+  let rightBright = right.brightness / max(right.count, 1)
+  let leftTonePenalty = abs(leftBright - 0.55) * 0.35
+  let rightTonePenalty = abs(rightBright - 0.55) * 0.35
+  let leftScore = left.count * pow(max(leftSat - leftTonePenalty, 0.01), 1.55)
+  let rightScore = right.count * pow(max(rightSat - rightTonePenalty, 0.01), 1.55)
 
   return leftScore < rightScore
 }
@@ -128,9 +137,13 @@ let green = selected.green / selected.count
 let blue = selected.blue / selected.count
 let seed = rgbToHsb(red: red, green: green, blue: blue)
 
-// Turn the wallpaper seed into a readable dark surface rather than using the raw wallpaper color.
-let surfaceSaturation = clamp(seed.saturation * 0.42, 0.18, 0.38)
-let surfaceBrightness = clamp(0.18 + seed.brightness * 0.12, 0.20, 0.30)
+let surfaceSaturation = isDark
+  ? clamp(seed.saturation * 0.48, 0.16, 0.42)
+  : clamp(seed.saturation * 0.22, 0.08, 0.24)
+let surfaceBrightness = isDark
+  ? clamp(0.16 + seed.brightness * 0.12, 0.19, 0.31)
+  : clamp(0.86 + seed.brightness * 0.08, 0.88, 0.96)
 let surface = hsbToRgb(hue: seed.hue, saturation: surfaceSaturation, brightness: surfaceBrightness)
 
-print(String(format: "0xD9%02X%02X%02X", surface.red, surface.green, surface.blue))
+// 0x8A = 54% opacity, giving a more translucent material surface.
+print(String(format: "0x8A%02X%02X%02X", surface.red, surface.green, surface.blue))
