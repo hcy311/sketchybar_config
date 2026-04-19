@@ -46,13 +46,16 @@ local function add_badge_item(name, app_names, icon, icon_size, click_app)
         style = "Regular",
         size = icon_size,
       },
-      padding_left = 10,
-      padding_right = 4,
+      padding_left = 7,
+      padding_right = 2,
       color = colors.white,
     },
     label = {
       string = "-",
-      padding_right = 10,
+      width = 18,
+      align = "left",
+      padding_left = 0,
+      padding_right = 5,
       font = { family = settings.font.numbers },
       color = colors.white,
     },
@@ -96,7 +99,8 @@ tencent_bracket = sbar.add("bracket", "tencent", { qq.name, wechat.name }, {
   drawing = false,
   background = {
     color = colors.bg1,
-    border_color = colors.transparent,
+    border_color = colors.item.border,
+    border_width = 1,
   }
 })
 
