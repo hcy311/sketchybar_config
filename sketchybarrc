@@ -1,0 +1,18 @@
+#!/usr/bin/env lua
+
+local source = debug.getinfo(1, "S").source:sub(2)
+local config_dir = source:match("(.*/)")
+
+if not config_dir then
+  config_dir = (os.getenv("PWD") or os.getenv("HOME") .. "/.config/sketchybar") .. "/"
+elseif config_dir:sub(1, 1) ~= "/" then
+  config_dir = (os.getenv("PWD") or ".") .. "/" .. config_dir
+end
+
+SKETCHYBAR_CONFIG_DIR = config_dir:gsub("/$", "")
+package.path = SKETCHYBAR_CONFIG_DIR .. "/?.lua;"
+  .. SKETCHYBAR_CONFIG_DIR .. "/?/init.lua;"
+  .. package.path
+
+require("helpers")
+require("init")

@@ -1,0 +1,15 @@
+.DS_Store
+**/.DS_Store
+
+# Generated helper binaries
+helpers/**/bin/
+
+# Local app wrapper for macOS Accessibility permissions.
+# Recreate it with scripts/sync_sketchybar_app.sh after installing SketchyBar.
+SketchyBar.app/
+
+# Swift build output generated from scripts/wallpaper_color.swift
+scripts/wallpaper_color
+
+# Local rescue backup from repair session
+*.backup
