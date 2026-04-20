@@ -31,6 +31,19 @@ English documentation: [README.md](README.md)
 - Xcode Command Line Tools，用于编译 helper 和 Swift 壁纸取色工具
 - Hack Nerd Font，用于微信和 QQ 图标
 
+## 重要警告
+
+当前配置使用 `scripts/sign_and_grant_accessibility.sh` 修复 SketchyBar 在 macOS 辅助功能权限中无法正常授权的问题。
+
+运行前请一定看完：
+
+- 这个脚本会直接修改系统级 TCC 数据库：`/Library/Application Support/com.apple.TCC/TCC.db`。
+- 它会要求管理员密码，并手动写入 Accessibility allow 记录。
+- 它会用本地自签名 Code Signing 证书重新签名 Homebrew 安装的 SketchyBar binary。
+- 这是针对 macOS TCC / 签名身份不匹配问题的本机 workaround，不是 Apple 或 SketchyBar 官方流程。
+- Homebrew 升级会替换 SketchyBar binary，签名和 TCC code requirement 可能再次失效。每次升级 SketchyBar 后都要重新运行这个脚本。
+- 继续实验前建议备份 TCC 数据库。如果 macOS 权限表现异常，注销/重新登录或重启通常能刷新 TCC/session 缓存。
+
 ## 安装
 
 将仓库 clone 到 SketchyBar 默认配置目录：
@@ -69,14 +82,6 @@ cd ~/.config/sketchybar
 - 用 `csreq` 生成当前签名对应的 code requirement。
 - 直接向 `/Library/Application Support/com.apple.TCC/TCC.db` 写入 Accessibility allow 记录，覆盖 Homebrew、opt、Cellar 三种路径。
 - 重启 `tccd` 和 `homebrew.mxcl.sketchybar`。
-
-Warnings / 注意事项：
-
-- 这个脚本会要求管理员密码，因为它会直接写系统级 TCC 数据库。
-- 这是本机专用修复。不要把生成的证书或私钥复制到其他机器。
-- Homebrew 升级会替换 SketchyBar binary，所以每次升级 SketchyBar 后都要重新运行这个脚本。
-- 直接编辑 TCC.db 是 macOS 私有实现细节。如果继续实验，建议先备份数据库。
-- 如果运行后 macOS 仍然表现异常，注销/重新登录或重启可以刷新 TCC/session 缓存。
 
 旧的 app wrapper 脚本 `scripts/sync_sketchybar_app.sh` 仍然保留。它会构建 `SketchyBar.app`、重新签名、编译 `scripts/wallpaper_color.swift`、安装独立的 `com.hcy.sketchybar` LaunchAgent，并重新加载 SketchyBar。
 

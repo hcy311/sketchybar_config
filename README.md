@@ -31,6 +31,19 @@ Chinese documentation: [README_CN.md](README_CN.md)
 - Xcode Command Line Tools, used to build helper binaries and the Swift wallpaper color helper
 - Hack Nerd Font for the WeChat/QQ icons
 
+## Important Warning
+
+This config currently uses `scripts/sign_and_grant_accessibility.sh` to repair SketchyBar's macOS Accessibility permission when the normal System Settings flow fails.
+
+Read this before running it:
+
+- The script directly edits the system TCC database at `/Library/Application Support/com.apple.TCC/TCC.db`.
+- It asks for an administrator password and writes Accessibility allow rows manually.
+- It re-signs the Homebrew-installed SketchyBar binary with a local self-signed Code Signing certificate.
+- This is a machine-local workaround for a macOS TCC/signature mismatch. It is not an official Apple or SketchyBar flow.
+- Homebrew upgrades replace the SketchyBar binary, so the signature and TCC code requirement can stop matching. Run the script again after every SketchyBar upgrade.
+- Back up the TCC database before experimenting further, and prefer rebooting/logging out after major permission changes if macOS behaves inconsistently.
+
 ## Installation
 
 Clone the repo into the standard SketchyBar config path:
@@ -69,14 +82,6 @@ cd ~/.config/sketchybar
 - Generates the current code requirement with `csreq`.
 - Writes Accessibility allow rows into `/Library/Application Support/com.apple.TCC/TCC.db` for the Homebrew, opt, and Cellar paths.
 - Restarts `tccd` and `homebrew.mxcl.sketchybar`.
-
-Warnings:
-
-- This script asks for an administrator password because it directly writes the system TCC database.
-- The script is intentionally machine-local. Do not copy its generated certificate/key files between machines.
-- Homebrew upgrades replace the SketchyBar binary, so run the script again after every SketchyBar upgrade.
-- Editing TCC.db is a private macOS implementation detail. A backup is recommended before experimenting further.
-- If macOS still behaves strangely after running it, log out and back in or reboot to flush TCC/session caches.
 
 The older app-wrapper script, `scripts/sync_sketchybar_app.sh`, remains available as a fallback. It builds `SketchyBar.app`, signs it, compiles `scripts/wallpaper_color.swift`, installs the dedicated `com.hcy.sketchybar` LaunchAgent, and reloads SketchyBar.
 
