@@ -99,8 +99,7 @@ tencent_bracket = sbar.add("bracket", "tencent", { qq.name, wechat.name }, {
   drawing = false,
   background = {
     color = colors.bg1,
-    border_color = colors.item.border,
-    border_width = 1,
+    border_color = colors.transparent,
   }
 })
 

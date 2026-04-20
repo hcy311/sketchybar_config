@@ -43,17 +43,12 @@ local colors = {
     bg = dark and 0x8A3B302F or 0x8AF6EEE7,
     border = dark and 0xff2c2e34 or 0xffded8e1,
   },
-  item = {
-    bg = dark and 0xCC2F2828 or 0xDDFDF7F2,
-    bg_hover = dark and 0xE03A3333 or 0xEEF8F0EA,
-    border = dark and 0x88f2edea or 0x881d1b20,
-  },
   popup = {
     bg = dark and 0xd02c2e34 or 0xeefef7ff,
     border = dark and 0xff7f8490 or 0xffcac4d0
   },
-  bg1 = dark and 0xCC2F2828 or 0xDDFDF7F2,
-  bg2 = dark and 0xD63A3333 or 0xEEE9E0D9,
+  bg1 = dark and 0x8A3B302F or 0x8AF6EEE7,
+  bg2 = dark and 0x8A413939 or 0x8AE9E0D9,
 }
 
 colors.with_alpha = function(color, alpha)
