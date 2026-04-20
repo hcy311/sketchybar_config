@@ -13,7 +13,7 @@ struct Bucket {
 
 let globalDefaults = UserDefaults.standard.persistentDomain(forName: UserDefaults.globalDomain)
 let isDark = globalDefaults?["AppleInterfaceStyle"] as? String == "Dark"
-let fallback = isDark ? "0x82282124" : "0x82F4EFEA"
+let fallback = isDark ? "0x8C282124" : "0x8CF4EFEA"
 
 func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {
   return max(lower, min(upper, value))
@@ -73,9 +73,60 @@ func mix(_ first: (red: Int, green: Int, blue: Int), _ second: (red: Int, green:
   )
 }
 
+func runAppleScript(_ source: String) -> String? {
+  let process = Process()
+  let pipe = Pipe()
+
+  process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+  process.arguments = ["-e", source]
+  process.standardOutput = pipe
+  process.standardError = Pipe()
+
+  do {
+    try process.run()
+    process.waitUntilExit()
+  } catch {
+    return nil
+  }
+
+  guard process.terminationStatus == 0 else {
+    return nil
+  }
+
+  let data = pipe.fileHandleForReading.readDataToEndOfFile()
+  return String(data: data, encoding: .utf8)?
+    .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+func desktopImageURL() -> URL? {
+  if CommandLine.arguments.count > 1 {
+    let url = URL(fileURLWithPath: CommandLine.arguments[1])
+    if NSImage(contentsOf: url) != nil {
+      return url
+    }
+  }
+
+  if let screen = NSScreen.main,
+     let url = NSWorkspace.shared.desktopImageURL(for: screen),
+     NSImage(contentsOf: url) != nil {
+    return url
+  }
+
+  if let path = runAppleScript("tell application \"System Events\" to get picture of current desktop"),
+     !path.isEmpty {
+    return URL(fileURLWithPath: path)
+  }
+
+  if let path = runAppleScript("tell application \"Finder\" to POSIX path of (desktop picture as alias)"),
+     !path.isEmpty {
+    return URL(fileURLWithPath: path)
+  }
+
+  return nil
+}
+
 guard
-  let screen = NSScreen.main,
-  let url = NSWorkspace.shared.desktopImageURL(for: screen),
+  let url = desktopImageURL(),
   let image = NSImage(contentsOf: url),
   let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
 else {
@@ -88,6 +139,29 @@ let width = cgImage.width
 let height = cgImage.height
 let samples = 48
 let bucketCount = 64
+let displayID = CGMainDisplayID()
+let screenWidth = max(1.0, Double(CGDisplayPixelsWide(displayID)))
+let screenHeight = max(1.0, Double(CGDisplayPixelsHigh(displayID)))
+let imageAspect = Double(width) / Double(max(height, 1))
+let screenAspect = screenWidth / screenHeight
+let cropWidth: Int
+let cropHeight: Int
+let cropX: Int
+let cropY: Int
+
+if imageAspect > screenAspect {
+  cropHeight = height
+  cropWidth = max(1, Int(Double(height) * screenAspect))
+  cropX = max(0, (width - cropWidth) / 2)
+  cropY = 0
+} else {
+  cropWidth = width
+  cropHeight = max(1, Int(Double(width) / screenAspect))
+  cropX = 0
+  cropY = max(0, (height - cropHeight) / 2)
+}
+
+let sampleHeight = max(1, Int(Double(cropHeight) * 0.16))
 
 var buckets = Array(repeating: Bucket(), count: bucketCount)
 var ambientRed = 0.0
@@ -97,8 +171,8 @@ var ambientWeight = 0.0
 
 for xIndex in 0..<samples {
   for yIndex in 0..<samples {
-    let x = max(0, min(width - 1, (xIndex * width) / samples))
-    let y = max(0, min(height - 1, (yIndex * height) / samples))
+    let x = max(0, min(width - 1, cropX + (xIndex * cropWidth) / samples))
+    let y = max(0, min(height - 1, cropY + (yIndex * sampleHeight) / samples))
 
     guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else {
       continue
@@ -108,9 +182,8 @@ for xIndex in 0..<samples {
     let green = Double(color.greenComponent)
     let blue = Double(color.blueComponent)
     let hsb = rgbToHsb(red: red, green: green, blue: blue)
-    let yRatio = Double(y) / Double(max(height - 1, 1))
-    let topBias = yRatio < 0.22
-    let weight = topBias ? 2.7 : (yRatio < 0.45 ? 1.35 : 0.65)
+    let yRatio = Double(y) / Double(max(sampleHeight - 1, 1))
+    let weight = yRatio < 0.45 ? 1.25 : 1.0
 
     if hsb.brightness > 0.08 && hsb.brightness < 0.97 {
       ambientRed += red * weight
@@ -121,7 +194,7 @@ for xIndex in 0..<samples {
 
     // Material You-like seed selection: prefer pleasant colorful mid-tones
     // around the menu-bar area instead of raw full-image dominance.
-    if hsb.saturation < 0.12 || hsb.brightness < 0.14 || hsb.brightness > 0.92 {
+    if hsb.saturation < 0.08 || hsb.brightness < 0.07 || hsb.brightness > 0.94 {
       continue
     }
 
@@ -132,9 +205,7 @@ for xIndex in 0..<samples {
     buckets[bucketIndex].saturation += hsb.saturation * weight
     buckets[bucketIndex].brightness += hsb.brightness * weight
     buckets[bucketIndex].count += weight
-    if topBias {
-      buckets[bucketIndex].topWeight += weight
-    }
+    buckets[bucketIndex].topWeight += weight
   }
 }
 
@@ -158,31 +229,54 @@ let best = buckets.enumerated().max { lhs, rhs in
   return leftScore < rightScore
 }
 
-guard let selected = best?.element, selected.count > 0 else {
+let selected = best?.element
+let hasSelectedSeed = (selected?.count ?? 0) > 0
+
+guard hasSelectedSeed || ambientWeight > 0 else {
   print(fallback)
   exit(0)
 }
 
-let red = selected.red / selected.count
-let green = selected.green / selected.count
-let blue = selected.blue / selected.count
+let red = hasSelectedSeed ? selected!.red / selected!.count : ambientRed / ambientWeight
+let green = hasSelectedSeed ? selected!.green / selected!.count : ambientGreen / ambientWeight
+let blue = hasSelectedSeed ? selected!.blue / selected!.count : ambientBlue / ambientWeight
 let seed = rgbToHsb(red: red, green: green, blue: blue)
 let ambient = ambientWeight > 0
   ? rgbToHsb(red: ambientRed / ambientWeight, green: ambientGreen / ambientWeight, blue: ambientBlue / ambientWeight)
   : seed
+let source = ambientWeight > 0 ? ambient : seed
 
 let surfaceSaturation = isDark
-  ? clamp(seed.saturation * 0.16, 0.055, 0.14)
-  : clamp(seed.saturation * 0.08, 0.025, 0.08)
+  ? clamp(source.saturation * 1.10, 0.14, 0.34)
+  : clamp(source.saturation * 0.55, 0.06, 0.18)
 let surfaceBrightness = isDark
-  ? clamp(0.16 + (1.0 - ambient.brightness) * 0.055 + seed.brightness * 0.025, 0.17, 0.235)
-  : clamp(0.92 + ambient.brightness * 0.035, 0.92, 0.965)
-let tintedSurface = hsbToRgb(hue: seed.hue, saturation: surfaceSaturation, brightness: surfaceBrightness)
-let neutralSurface = isDark
-  ? (red: 40, green: 37, blue: 40)
-  : (red: 244, green: 239, blue: 234)
-let surface = mix(neutralSurface, tintedSurface, amount: isDark ? 0.38 : 0.28)
+  ? clamp(source.brightness * 0.76, 0.27, 0.40)
+  : clamp(0.86 + source.brightness * 0.10, 0.88, 0.96)
+let surface = hsbToRgb(hue: source.hue, saturation: surfaceSaturation, brightness: surfaceBrightness)
 
-// 0x82 = 51% opacity. The hue is intentionally subtle: the bar should feel
-// harmonized with the wallpaper, not painted with the wallpaper's accent color.
-print(String(format: "0x82%02X%02X%02X", surface.red, surface.green, surface.blue))
+if ProcessInfo.processInfo.environment["DEBUG_WALLPAPER_COLOR"] == "1" {
+  fputs(
+    String(
+      format: "url=%@ size=%dx%d crop=%dx%d+%d+%d ambientWeight=%.2f source=(h%.3f s%.3f b%.3f) surface=%02X%02X%02X\n",
+      url.path,
+      width,
+      height,
+      cropWidth,
+      cropHeight,
+      cropX,
+      cropY,
+      ambientWeight,
+      source.hue,
+      source.saturation,
+      source.brightness,
+      surface.red,
+      surface.green,
+      surface.blue
+    ),
+    stderr
+  )
+}
+
+// 0x8C = 55% opacity. The hue is present but still restrained: the bar should
+// feel harmonized with the wallpaper without fully becoming the accent color.
+print(String(format: "0x8C%02X%02X%02X", surface.red, surface.green, surface.blue))

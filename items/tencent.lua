@@ -38,7 +38,7 @@ local function add_badge_item(name, app_names, icon, icon_size, click_app)
   local item = sbar.add("item", name, {
     position = "right",
     drawing = false,
-    update_freq = 10,
+    update_freq = 1,
     icon = {
       string = icon,
       font = {

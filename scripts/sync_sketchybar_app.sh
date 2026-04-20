@@ -103,7 +103,10 @@ if [ -f "$HOMEBREW_PLIST" ]; then
   launchctl bootout "gui/$USER_ID" "$HOMEBREW_PLIST" 2>/dev/null || true
 fi
 
-launchctl bootout "gui/$USER_ID/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$USER_ID" "$PLIST"
+if launchctl print "gui/$USER_ID/$LABEL" >/dev/null 2>&1; then
+  launchctl kickstart -k "gui/$USER_ID/$LABEL"
+else
+  launchctl bootstrap "gui/$USER_ID" "$PLIST"
+fi
 
 echo "SketchyBar.app synced from $BREW_BIN and $LABEL reloaded."

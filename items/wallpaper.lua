@@ -6,10 +6,14 @@ local wallpaper = sbar.add("item", "wallpaper.color", {
 })
 
 local function update_bar_color()
-  local command = "if [ -x " .. config_dir .. "/scripts/wallpaper_color ]; then "
-    .. config_dir .. "/scripts/wallpaper_color; else "
+  local helper = config_dir .. "/scripts/wallpaper_color"
+  local source = config_dir .. "/scripts/wallpaper_color.swift"
+  local wallpaper_path = "wallpaper_path=$(osascript -e 'tell application \"System Events\" to get picture of current desktop' 2>/dev/null); "
+  local command = wallpaper_path
+    .. "if [ -x " .. string.format("%q", helper) .. " ]; then "
+    .. string.format("%q", helper) .. " \"$wallpaper_path\"; else "
     .. "/usr/bin/swift -module-cache-path /tmp/sketchybar-swift-cache "
-    .. config_dir .. "/scripts/wallpaper_color.swift; fi"
+    .. string.format("%q", source) .. " \"$wallpaper_path\"; fi"
 
   sbar.exec(command, function(color)
     color = color:gsub("%s+", "")

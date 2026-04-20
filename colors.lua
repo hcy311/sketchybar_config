@@ -40,15 +40,15 @@ local colors = {
   magenta = palette.magenta,
 
   bar = {
-    bg = dark and 0x82282124 or 0x82F4EFEA,
+    bg = dark and 0x8C282124 or 0x8CF4EFEA,
     border = dark and 0xff2c2e34 or 0xffded8e1,
   },
   popup = {
     bg = dark and 0xd02c2e34 or 0xeefef7ff,
     border = dark and 0xff7f8490 or 0xffcac4d0
   },
-  bg1 = dark and 0x82282124 or 0x82F4EFEA,
-  bg2 = dark and 0x82363033 or 0x82E8DFD8,
+  bg1 = dark and 0x8C282124 or 0x8CF4EFEA,
+  bg2 = dark and 0x8C363033 or 0x8CE8DFD8,
 }
 
 colors.with_alpha = function(color, alpha)
