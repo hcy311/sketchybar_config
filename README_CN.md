@@ -7,7 +7,8 @@ English documentation: [README.md](README.md)
 ## 功能
 
 - 使用 Lua 编写的模块化 SketchyBar 配置，主要 item 位于 `items/`。
-- 自动生成 `SketchyBar.app` wrapper，并通过独立的 `com.hcy.sketchybar` LaunchAgent 启动，解决 Homebrew 命令行二进制在 macOS 辅助功能权限里不稳定显示的问题。
+- 默认使用 Homebrew 的 SketchyBar binary，并提供本地签名和 Accessibility TCC 修复脚本。
+- 保留可选的 `SketchyBar.app` wrapper 方案，用于需要 app bundle 身份时兜底。
 - 启动时根据当前壁纸生成类似 Material You 的 bar 背景色，并更偏向壁纸顶部区域里更美观的柔和 surface 色。
 - 支持系统浅色/深色模式。浅色模式下文字和图标自动切换为黑色系，深色模式下使用浅色系。
 - Mission Control 桌面空间显示，并展示每个空间里的应用图标。
@@ -37,30 +38,47 @@ English documentation: [README.md](README.md)
 ```sh
 git clone git@github.com:hcy311/sketchybar_config.git ~/.config/sketchybar
 cd ~/.config/sketchybar
+./scripts/sign_and_grant_accessibility.sh
+```
+
+这个脚本会用本地 Code Signing 证书签名 Homebrew 的 SketchyBar binary，把匹配当前签名的 Accessibility 记录写进系统 TCC 数据库，并重启 Homebrew LaunchAgent。
+
+如果你想改用 app wrapper 兜底方案，可以运行：
+
+```sh
 ./scripts/sync_sketchybar_app.sh
 ```
 
-然后打开 `系统设置` -> `隐私与安全性` -> `辅助功能`，添加：
-
-```text
-~/.config/sketchybar/SketchyBar.app
-```
-
-并打开 `SketchyBar.app` 的权限开关。
+然后在 `系统设置` -> `隐私与安全性` -> `辅助功能` 中添加 `~/.config/sketchybar/SketchyBar.app` 并打开开关。
 
 ## 升级 SketchyBar
 
-每次通过 Homebrew 升级 SketchyBar 后，重新生成本地 app wrapper：
+每次通过 Homebrew 升级 SketchyBar 后，binary 会变化，macOS 可能无法再匹配旧的 Accessibility code requirement。升级后重新签名并修复权限：
 
 ```sh
 brew upgrade sketchybar
 cd ~/.config/sketchybar
-./scripts/sync_sketchybar_app.sh
+./scripts/sign_and_grant_accessibility.sh
 ```
 
-这个脚本会构建 `SketchyBar.app`、重新签名、编译 `scripts/wallpaper_color.swift`、停止 Homebrew 管理的 SketchyBar service，安装独立的 `com.hcy.sketchybar` LaunchAgent，并重新加载 SketchyBar。
+`scripts/sign_and_grant_accessibility.sh` 会做这些事：
 
-使用独立 LaunchAgent 是为了避免 Homebrew 升级或 `brew services` 重写 plist 后，又偷偷切回原始 Homebrew binary。如果之后手动运行了 `brew services start sketchybar`，再运行一次 `./scripts/sync_sketchybar_app.sh` 即可重新接管。
+- 如果本机还没有签名证书，就创建一个本地自签名 Code Signing 证书。
+- 重新签名当前 Homebrew SketchyBar binary。
+- 强制 Homebrew LaunchAgent 启动 `/opt/homebrew/bin/sketchybar`。
+- 用 `csreq` 生成当前签名对应的 code requirement。
+- 直接向 `/Library/Application Support/com.apple.TCC/TCC.db` 写入 Accessibility allow 记录，覆盖 Homebrew、opt、Cellar 三种路径。
+- 重启 `tccd` 和 `homebrew.mxcl.sketchybar`。
+
+Warnings / 注意事项：
+
+- 这个脚本会要求管理员密码，因为它会直接写系统级 TCC 数据库。
+- 这是本机专用修复。不要把生成的证书或私钥复制到其他机器。
+- Homebrew 升级会替换 SketchyBar binary，所以每次升级 SketchyBar 后都要重新运行这个脚本。
+- 直接编辑 TCC.db 是 macOS 私有实现细节。如果继续实验，建议先备份数据库。
+- 如果运行后 macOS 仍然表现异常，注销/重新登录或重启可以刷新 TCC/session 缓存。
+
+旧的 app wrapper 脚本 `scripts/sync_sketchybar_app.sh` 仍然保留。它会构建 `SketchyBar.app`、重新签名、编译 `scripts/wallpaper_color.swift`、安装独立的 `com.hcy.sketchybar` LaunchAgent，并重新加载 SketchyBar。
 
 `SketchyBar.app` 被故意放进 `.gitignore`，因为它包含本机 Homebrew 二进制副本和本地 ad-hoc 签名。它应该在每台机器上重新生成，而不是提交到仓库。
 
@@ -78,7 +96,7 @@ cd ~/.config/sketchybar
 重启真正的 LaunchAgent：
 
 ```sh
-launchctl kickstart -k gui/$(id -u)/com.hcy.sketchybar
+launchctl kickstart -k gui/$(id -u)/homebrew.mxcl.sketchybar
 ```
 
 给已经运行的 bar 发送刷新事件：
@@ -87,7 +105,7 @@ launchctl kickstart -k gui/$(id -u)/com.hcy.sketchybar
 sketchybar --trigger forced
 ```
 
-终端里的 `sketchybar` 通常会指向 `/opt/homebrew/bin/sketchybar`。它适合用来给正在运行的 bar 发命令，但不应该当成服务启动器。真正持久运行的服务要用 `launchctl` 检查，并且应该指向 `SketchyBar.app`。
+终端里的 `sketchybar` 通常会指向 `/opt/homebrew/bin/sketchybar`。Homebrew LaunchAgent 也应该指向同一个路径，这样 Accessibility/TCC 看到的 client path 更稳定。
 
 检查终端命令路径：
 
@@ -99,6 +117,7 @@ which sketchybar
 
 ```sh
 launchctl print gui/$(id -u)/com.hcy.sketchybar
+launchctl print gui/$(id -u)/homebrew.mxcl.sketchybar
 ```
 
 ## 参考来源

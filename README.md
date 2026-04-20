@@ -7,7 +7,8 @@ Chinese documentation: [README_CN.md](README_CN.md)
 ## Features
 
 - Lua-based SketchyBar configuration with modular items under `items/`.
-- macOS Accessibility-friendly `SketchyBar.app` wrapper generated locally from the Homebrew binary, launched through a dedicated `com.hcy.sketchybar` LaunchAgent.
+- Homebrew SketchyBar binary workflow with a helper script for local code signing and Accessibility TCC repair.
+- Optional macOS Accessibility-friendly `SketchyBar.app` wrapper generated locally from the Homebrew binary.
 - Wallpaper-aware Material You-style bar color generated at SketchyBar startup, biased toward pleasant top-of-wallpaper surface tones.
 - Automatic light/dark mode support. In light mode, foreground text and icons switch to dark colors; in dark mode they use light colors.
 - Mission Control spaces with per-space app icons.
@@ -37,30 +38,47 @@ Clone the repo into the standard SketchyBar config path:
 ```sh
 git clone git@github.com:hcy311/sketchybar_config.git ~/.config/sketchybar
 cd ~/.config/sketchybar
+./scripts/sign_and_grant_accessibility.sh
+```
+
+The script signs the Homebrew SketchyBar binary with a local Code Signing certificate, writes the matching Accessibility entry into the system TCC database, and restarts the Homebrew LaunchAgent.
+
+If you prefer the app-wrapper workaround instead, run:
+
+```sh
 ./scripts/sync_sketchybar_app.sh
 ```
 
-Then open `System Settings` -> `Privacy & Security` -> `Accessibility`, add:
-
-```text
-~/.config/sketchybar/SketchyBar.app
-```
-
-Enable the toggle for `SketchyBar.app`.
+Then add `~/.config/sketchybar/SketchyBar.app` in `System Settings` -> `Privacy & Security` -> `Accessibility`.
 
 ## Updating SketchyBar
 
-After upgrading SketchyBar with Homebrew, rebuild the local app wrapper:
+After upgrading SketchyBar with Homebrew, the binary changes and macOS may stop matching the old Accessibility code requirement. Re-sign and re-grant Accessibility:
 
 ```sh
 brew upgrade sketchybar
 cd ~/.config/sketchybar
-./scripts/sync_sketchybar_app.sh
+./scripts/sign_and_grant_accessibility.sh
 ```
 
-The script builds `SketchyBar.app`, signs it, compiles `scripts/wallpaper_color.swift`, stops the Homebrew-managed SketchyBar service, installs the dedicated `com.hcy.sketchybar` LaunchAgent, and reloads SketchyBar.
+`scripts/sign_and_grant_accessibility.sh` does the following:
 
-The dedicated LaunchAgent is used so Homebrew upgrades or `brew services` plist rewrites do not silently switch SketchyBar back to the raw Homebrew binary. If you intentionally run `brew services start sketchybar` later, run `./scripts/sync_sketchybar_app.sh` again afterwards.
+- Creates a local self-signed Code Signing certificate if one does not already exist.
+- Re-signs the current Homebrew SketchyBar binary.
+- Forces the Homebrew LaunchAgent to start `/opt/homebrew/bin/sketchybar`.
+- Generates the current code requirement with `csreq`.
+- Writes Accessibility allow rows into `/Library/Application Support/com.apple.TCC/TCC.db` for the Homebrew, opt, and Cellar paths.
+- Restarts `tccd` and `homebrew.mxcl.sketchybar`.
+
+Warnings:
+
+- This script asks for an administrator password because it directly writes the system TCC database.
+- The script is intentionally machine-local. Do not copy its generated certificate/key files between machines.
+- Homebrew upgrades replace the SketchyBar binary, so run the script again after every SketchyBar upgrade.
+- Editing TCC.db is a private macOS implementation detail. A backup is recommended before experimenting further.
+- If macOS still behaves strangely after running it, log out and back in or reboot to flush TCC/session caches.
+
+The older app-wrapper script, `scripts/sync_sketchybar_app.sh`, remains available as a fallback. It builds `SketchyBar.app`, signs it, compiles `scripts/wallpaper_color.swift`, installs the dedicated `com.hcy.sketchybar` LaunchAgent, and reloads SketchyBar.
 
 `SketchyBar.app` is intentionally ignored by git because it contains a local copy of the Homebrew binary and a local ad-hoc signature. It should be regenerated on each machine instead of committed.
 
@@ -78,7 +96,7 @@ The following files are generated locally and ignored:
 Restart the actual LaunchAgent:
 
 ```sh
-launchctl kickstart -k gui/$(id -u)/com.hcy.sketchybar
+launchctl kickstart -k gui/$(id -u)/homebrew.mxcl.sketchybar
 ```
 
 Send a refresh event to the already-running bar:
@@ -87,7 +105,7 @@ Send a refresh event to the already-running bar:
 sketchybar --trigger forced
 ```
 
-The `sketchybar` command in your shell usually resolves to `/opt/homebrew/bin/sketchybar`. That is fine for sending commands to the running bar, but it should not be treated as the service launcher. The persistent service should be checked with `launchctl` and should point at `SketchyBar.app`.
+The `sketchybar` command in your shell usually resolves to `/opt/homebrew/bin/sketchybar`. The Homebrew LaunchAgent should point at that same path so Accessibility/TCC sees a stable client path.
 
 Check the shell command path:
 
@@ -99,6 +117,7 @@ Check the LaunchAgent target:
 
 ```sh
 launchctl print gui/$(id -u)/com.hcy.sketchybar
+launchctl print gui/$(id -u)/homebrew.mxcl.sketchybar
 ```
 
 ## References
