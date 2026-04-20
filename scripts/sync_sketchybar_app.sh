@@ -4,9 +4,13 @@ set -euo pipefail
 CONFIG_DIR="${CONFIG_DIR:-$HOME/.config/sketchybar}"
 APP_DIR="$CONFIG_DIR/SketchyBar.app"
 APP_BIN="$APP_DIR/Contents/MacOS/sketchybar"
-PLIST="$HOME/Library/LaunchAgents/homebrew.mxcl.sketchybar.plist"
+LABEL="com.hcy.sketchybar"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+HOMEBREW_LABEL="homebrew.mxcl.sketchybar"
+HOMEBREW_PLIST="$HOME/Library/LaunchAgents/$HOMEBREW_LABEL.plist"
 BREW_BIN="$(brew --prefix sketchybar)/bin/sketchybar"
 SKETCHYBAR_VERSION="$("$BREW_BIN" --version | sed 's/^sketchybar-v//')"
+USER_ID="$(id -u)"
 
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
@@ -48,12 +52,58 @@ if command -v swiftc >/dev/null 2>&1; then
     -o "$CONFIG_DIR/scripts/wallpaper_color"
 fi
 
-/usr/libexec/PlistBuddy -c "Set :ProgramArguments:0 $APP_BIN" "$PLIST"
-if ! /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:CONFIG_DIR $CONFIG_DIR" "$PLIST" 2>/dev/null; then
-  /usr/libexec/PlistBuddy -c "Add :EnvironmentVariables:CONFIG_DIR string $CONFIG_DIR" "$PLIST"
+cat > "$PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$APP_BIN</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>CONFIG_DIR</key>
+    <string>$CONFIG_DIR</string>
+    <key>LANG</key>
+    <string>en_US.UTF-8</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>LimitLoadToSessionType</key>
+  <array>
+    <string>Aqua</string>
+    <string>Background</string>
+    <string>LoginWindow</string>
+    <string>StandardIO</string>
+    <string>System</string>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/opt/homebrew/var/log/sketchybar/sketchybar.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/opt/homebrew/var/log/sketchybar/sketchybar.err.log</string>
+</dict>
+</plist>
+PLIST
+
+if command -v brew >/dev/null 2>&1; then
+  brew services stop sketchybar >/dev/null 2>&1 || true
 fi
 
-launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
+launchctl bootout "gui/$USER_ID/$HOMEBREW_LABEL" 2>/dev/null || true
+if [ -f "$HOMEBREW_PLIST" ]; then
+  launchctl bootout "gui/$USER_ID" "$HOMEBREW_PLIST" 2>/dev/null || true
+fi
 
-echo "SketchyBar.app synced from $BREW_BIN and LaunchAgent reloaded."
+launchctl bootout "gui/$USER_ID/$LABEL" 2>/dev/null || true
+launchctl bootstrap "gui/$USER_ID" "$PLIST"
+
+echo "SketchyBar.app synced from $BREW_BIN and $LABEL reloaded."

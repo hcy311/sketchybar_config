@@ -7,8 +7,8 @@ English documentation: [README.md](README.md)
 ## 功能
 
 - 使用 Lua 编写的模块化 SketchyBar 配置，主要 item 位于 `items/`。
-- 自动生成 `SketchyBar.app` wrapper，解决 Homebrew 命令行二进制在 macOS 辅助功能权限里不稳定显示的问题。
-- 启动时根据当前壁纸生成类似 Material You 的 bar 背景色。
+- 自动生成 `SketchyBar.app` wrapper，并通过独立的 `com.hcy.sketchybar` LaunchAgent 启动，解决 Homebrew 命令行二进制在 macOS 辅助功能权限里不稳定显示的问题。
+- 启动时根据当前壁纸生成类似 Material You 的 bar 背景色，并更偏向壁纸顶部区域里更美观的柔和 surface 色。
 - 支持系统浅色/深色模式。浅色模式下文字和图标自动切换为黑色系，深色模式下使用浅色系。
 - Mission Control 桌面空间显示，并展示每个空间里的应用图标。
 - 当前前台应用显示，点击可在菜单栏和桌面空间显示之间切换。
@@ -58,7 +58,9 @@ cd ~/.config/sketchybar
 ./scripts/sync_sketchybar_app.sh
 ```
 
-这个脚本会构建 `SketchyBar.app`、重新签名、编译 `scripts/wallpaper_color.swift`、更新 LaunchAgent，并重新加载 SketchyBar。
+这个脚本会构建 `SketchyBar.app`、重新签名、编译 `scripts/wallpaper_color.swift`、停止 Homebrew 管理的 SketchyBar service，安装独立的 `com.hcy.sketchybar` LaunchAgent，并重新加载 SketchyBar。
+
+使用独立 LaunchAgent 是为了避免 Homebrew 升级或 `brew services` 重写 plist 后，又偷偷切回原始 Homebrew binary。如果之后手动运行了 `brew services start sketchybar`，再运行一次 `./scripts/sync_sketchybar_app.sh` 即可重新接管。
 
 `SketchyBar.app` 被故意放进 `.gitignore`，因为它包含本机 Homebrew 二进制副本和本地 ad-hoc 签名。它应该在每台机器上重新生成，而不是提交到仓库。
 
@@ -73,22 +75,30 @@ cd ~/.config/sketchybar
 
 ## 常用命令
 
-重新加载 SketchyBar：
+重启真正的 LaunchAgent：
 
 ```sh
-sketchybar --reload ~/.config/sketchybar/sketchybarrc
+launchctl kickstart -k gui/$(id -u)/com.hcy.sketchybar
 ```
 
-触发组件刷新：
+给已经运行的 bar 发送刷新事件：
 
 ```sh
 sketchybar --trigger forced
 ```
 
+终端里的 `sketchybar` 通常会指向 `/opt/homebrew/bin/sketchybar`。它适合用来给正在运行的 bar 发命令，但不应该当成服务启动器。真正持久运行的服务要用 `launchctl` 检查，并且应该指向 `SketchyBar.app`。
+
+检查终端命令路径：
+
+```sh
+which sketchybar
+```
+
 检查 LaunchAgent 实际启动目标：
 
 ```sh
-launchctl print gui/$(id -u)/homebrew.mxcl.sketchybar
+launchctl print gui/$(id -u)/com.hcy.sketchybar
 ```
 
 ## 参考来源

@@ -7,8 +7,8 @@ Chinese documentation: [README_CN.md](README_CN.md)
 ## Features
 
 - Lua-based SketchyBar configuration with modular items under `items/`.
-- macOS Accessibility-friendly `SketchyBar.app` wrapper generated locally from the Homebrew binary.
-- Wallpaper-aware Material You-style bar color generated at SketchyBar startup.
+- macOS Accessibility-friendly `SketchyBar.app` wrapper generated locally from the Homebrew binary, launched through a dedicated `com.hcy.sketchybar` LaunchAgent.
+- Wallpaper-aware Material You-style bar color generated at SketchyBar startup, biased toward pleasant top-of-wallpaper surface tones.
 - Automatic light/dark mode support. In light mode, foreground text and icons switch to dark colors; in dark mode they use light colors.
 - Mission Control spaces with per-space app icons.
 - Front app display and clickable menu/spaces switching.
@@ -58,7 +58,9 @@ cd ~/.config/sketchybar
 ./scripts/sync_sketchybar_app.sh
 ```
 
-The script builds `SketchyBar.app`, signs it, compiles `scripts/wallpaper_color.swift`, updates the LaunchAgent, and reloads SketchyBar.
+The script builds `SketchyBar.app`, signs it, compiles `scripts/wallpaper_color.swift`, stops the Homebrew-managed SketchyBar service, installs the dedicated `com.hcy.sketchybar` LaunchAgent, and reloads SketchyBar.
+
+The dedicated LaunchAgent is used so Homebrew upgrades or `brew services` plist rewrites do not silently switch SketchyBar back to the raw Homebrew binary. If you intentionally run `brew services start sketchybar` later, run `./scripts/sync_sketchybar_app.sh` again afterwards.
 
 `SketchyBar.app` is intentionally ignored by git because it contains a local copy of the Homebrew binary and a local ad-hoc signature. It should be regenerated on each machine instead of committed.
 
@@ -73,22 +75,30 @@ The following files are generated locally and ignored:
 
 ## Useful Commands
 
-Reload SketchyBar:
+Restart the actual LaunchAgent:
 
 ```sh
-sketchybar --reload ~/.config/sketchybar/sketchybarrc
+launchctl kickstart -k gui/$(id -u)/com.hcy.sketchybar
 ```
 
-Trigger routine refreshes:
+Send a refresh event to the already-running bar:
 
 ```sh
 sketchybar --trigger forced
 ```
 
+The `sketchybar` command in your shell usually resolves to `/opt/homebrew/bin/sketchybar`. That is fine for sending commands to the running bar, but it should not be treated as the service launcher. The persistent service should be checked with `launchctl` and should point at `SketchyBar.app`.
+
+Check the shell command path:
+
+```sh
+which sketchybar
+```
+
 Check the LaunchAgent target:
 
 ```sh
-launchctl print gui/$(id -u)/homebrew.mxcl.sketchybar
+launchctl print gui/$(id -u)/com.hcy.sketchybar
 ```
 
 ## References
