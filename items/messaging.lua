@@ -96,8 +96,9 @@ end
 local qq = add_badge_item("qq", { "QQ" }, "󰘅", 19.0, "QQ")
 local wechat = add_badge_item("wechat", { "WeChat", "微信" }, "󰘑", 20.0, "WeChat")
 local whatsapp = add_badge_item("whatsapp", { "WhatsApp", "WhatsApp Beta" }, "", 18.0, "WhatsApp")
+local telegram = add_badge_item("telegram", { "Telegram", "Telegram Desktop" }, "", 18.0, "Telegram")
 
-messaging_bracket = sbar.add("bracket", "messaging", { qq.name, wechat.name, whatsapp.name }, {
+messaging_bracket = sbar.add("bracket", "messaging", { qq.name, wechat.name, whatsapp.name, telegram.name }, {
   drawing = false,
   background = {
     color = colors.bg1,
