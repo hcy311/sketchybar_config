@@ -2,8 +2,8 @@ local colors = require("colors")
 local settings = require("settings")
 
 local items = {}
-local tencent_bracket
-local tencent_padding
+local messaging_bracket
+local messaging_padding
 
 local function badge_command(app_names)
   local pattern = table.concat(app_names, "\\|")
@@ -25,12 +25,12 @@ local function update_group_visibility()
     end
   end
 
-  if tencent_bracket then
-    tencent_bracket:set({ drawing = any_running })
+  if messaging_bracket then
+    messaging_bracket:set({ drawing = any_running })
   end
 
-  if tencent_padding then
-    tencent_padding:set({ drawing = any_running })
+  if messaging_padding then
+    messaging_padding:set({ drawing = any_running })
   end
 end
 
@@ -95,8 +95,9 @@ end
 
 local qq = add_badge_item("qq", { "QQ" }, "󰘅", 19.0, "QQ")
 local wechat = add_badge_item("wechat", { "WeChat", "微信" }, "󰘑", 20.0, "WeChat")
+local whatsapp = add_badge_item("whatsapp", { "WhatsApp", "WhatsApp Beta" }, "", 18.0, "WhatsApp")
 
-tencent_bracket = sbar.add("bracket", "tencent", { qq.name, wechat.name }, {
+messaging_bracket = sbar.add("bracket", "messaging", { qq.name, wechat.name, whatsapp.name }, {
   drawing = false,
   background = {
     color = colors.bg1,
@@ -104,7 +105,7 @@ tencent_bracket = sbar.add("bracket", "tencent", { qq.name, wechat.name }, {
   }
 })
 
-tencent_padding = sbar.add("item", "tencent.padding", {
+messaging_padding = sbar.add("item", "messaging.padding", {
   position = "right",
   drawing = false,
   width = settings.group_paddings,

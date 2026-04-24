@@ -20,7 +20,7 @@ English documentation: [README.md](README.md)
 - Wi-Fi / 网络速率组件，点击可查看网络详情，并支持点击复制字段。
 - CPU 图表组件，使用本地 helper 事件提供器。
 - 媒体组件，支持 Spotify / Music 的封面、歌曲信息和控制按钮。
-- 微信和 QQ 未读数显示，应用未运行时自动隐藏。
+- 微信、QQ、WhatsApp 未读数显示，应用未运行时自动隐藏。
 - 纯图标咖啡因组件，点击切换 `caffeinate -dimsu` 防睡眠状态。
 
 ## 依赖

@@ -20,7 +20,7 @@ Chinese documentation: [README_CN.md](README_CN.md)
 - Wi-Fi/network throughput widget with popup details and click-to-copy fields.
 - CPU graph widget using a small local event provider.
 - Media widget for Spotify/Music playback artwork and controls.
-- WeChat and QQ unread badge widgets that auto-hide when the apps are not running.
+- WeChat, QQ, and WhatsApp unread badge widgets that auto-hide when the apps are not running.
 - Icon-only caffeine widget for toggling `caffeinate -dimsu`.
 
 ## Requirements
