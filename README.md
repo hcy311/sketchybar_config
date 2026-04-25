@@ -136,7 +136,7 @@ Important Loon note:
   - `com.ruikq.decar` for the App Store / iPad build
 - The UI label stays `Loon` regardless of which bundle is detected
 
-## Loon 2 Watchdog
+## Loon iPad Watchdog
 
 The repo includes a standalone [loon2-watchdog](loon2-watchdog) folder for users who want to keep Loon alive on macOS.
 
