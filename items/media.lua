@@ -1,11 +1,18 @@
 local icons = require("icons")
 local colors = require("colors")
+local config_dir = SKETCHYBAR_CONFIG_DIR or os.getenv("CONFIG_DIR") or "."
 
-local whitelist = { ["Spotify"] = true,
-                    ["Music"] = true    };
+local whitelist = {
+  ["Spotify"] = true,
+  ["Music"] = true,
+  ["音乐"] = true,
+}
+
+sbar.exec("killall media_change >/dev/null")
 
 local media_cover = sbar.add("item", {
   position = "right",
+  update_freq = 0,
   background = {
     image = {
       string = "media.artwork",
@@ -83,36 +90,73 @@ local function animate_detail(detail)
   end)
 end
 
-media_cover:subscribe("media_change", function(env)
-  if whitelist[env.INFO.app] then
-    local drawing = (env.INFO.state == "playing")
-    media_artist:set({ drawing = drawing, label = env.INFO.artist, })
-    media_title:set({ drawing = drawing, label = env.INFO.title, })
-    media_cover:set({ drawing = drawing })
+local function is_supported_app(app)
+  if not app or app == "" then return false end
+  if whitelist[app] then return true end
 
-    if drawing then
-      animate_detail(true)
-      interrupt = interrupt + 1
-      sbar.delay(5, animate_detail)
-    else
-      media_cover:set({ popup = { drawing = false } })
-    end
+  local normalized = string.lower(app)
+  return normalized:find("music", 1, true) ~= nil
+    or normalized:find("spotify", 1, true) ~= nil
+end
+
+local function is_playing_state(state)
+  if not state or state == "" then return false end
+  return string.lower(state):find("playing", 1, true) ~= nil
+end
+
+local function apply_media(app, state, title, artist)
+  local drawing = is_supported_app(app) and is_playing_state(state)
+
+  media_artist:set({
+    drawing = drawing,
+    label = artist or "",
+  })
+
+  media_title:set({
+    drawing = drawing,
+    label = title or "",
+  })
+
+  media_cover:set({ drawing = drawing })
+
+  if drawing then
+    animate_detail(true)
+    interrupt = interrupt + 1
+    sbar.delay(5, animate_detail)
+  else
+    media_cover:set({ popup = { drawing = false } })
   end
-end)
+end
 
-media_cover:subscribe("mouse.entered", function(env)
+local function refresh_media()
+  sbar.exec(config_dir .. "/scripts/nowplaying_media.sh", function(output)
+    output = (output or ""):gsub("%s+$", "")
+
+    local app, state, title, artist = output:match("^([^\t]*)\t([^\t]*)\t([^\t]*)\t(.*)$")
+    if not app then
+      apply_media("", "stopped", "", "")
+      return
+    end
+
+    apply_media(app, state, title, artist)
+  end)
+end
+
+media_cover:subscribe({ "routine", "system_woke", "forced" }, refresh_media)
+
+media_cover:subscribe("mouse.entered", function(_)
   interrupt = interrupt + 1
   animate_detail(true)
 end)
 
-media_cover:subscribe("mouse.exited", function(env)
+media_cover:subscribe("mouse.exited", function(_)
   animate_detail(false)
 end)
 
-media_cover:subscribe("mouse.clicked", function(env)
+media_cover:subscribe("mouse.clicked", function(_)
   media_cover:set({ popup = { drawing = "toggle" }})
 end)
 
-media_title:subscribe("mouse.exited.global", function(env)
+media_title:subscribe("mouse.exited.global", function(_)
   media_cover:set({ popup = { drawing = false }})
 end)

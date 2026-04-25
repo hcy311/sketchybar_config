@@ -34,7 +34,7 @@ local function update_group_visibility()
   end
 end
 
-local function add_badge_item(name, app_names, icon, icon_size, click_app)
+local function add_badge_item(name, app_names, icon, icon_size, click_app, label_width)
   local item = sbar.add("item", name, {
     position = "right",
     drawing = false,
@@ -47,16 +47,16 @@ local function add_badge_item(name, app_names, icon, icon_size, click_app)
         style = "Regular",
         size = icon_size,
       },
-      padding_left = 7,
-      padding_right = 2,
+      padding_left = 6,
+      padding_right = 1,
       color = colors.white,
     },
     label = {
       string = "-",
-      width = 18,
+      width = label_width or 14,
       align = "left",
       padding_left = 0,
-      padding_right = 5,
+      padding_right = 6,
       font = { family = settings.font.numbers },
       color = colors.white,
     },
@@ -93,7 +93,7 @@ local function add_badge_item(name, app_names, icon, icon_size, click_app)
   return item
 end
 
-local qq = add_badge_item("qq", { "QQ" }, "󰘅", 19.0, "QQ")
+local qq = add_badge_item("qq", { "QQ" }, "󰘅", 19.0, "QQ", 18)
 local wechat = add_badge_item("wechat", { "WeChat", "微信" }, "󰘑", 20.0, "WeChat")
 local whatsapp = add_badge_item("whatsapp", { "WhatsApp", "WhatsApp Beta" }, "", 18.0, "WhatsApp")
 local telegram = add_badge_item("telegram", { "Telegram", "Telegram Desktop" }, "", 18.0, "Telegram")

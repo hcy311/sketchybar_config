@@ -18,10 +18,12 @@ Chinese documentation: [README_CN.md](README_CN.md)
 - Battery widget with remaining-time popup.
 - Volume widget with output device popup and scroll-to-adjust support.
 - Wi-Fi/network throughput widget with popup details and click-to-copy fields.
+- Wi-Fi popup with generalized proxy detection for Clash Verge, Quantumult X, Shadowrocket, and Loon.
 - CPU graph widget using a small local event provider.
 - Media widget for Spotify/Music playback artwork and controls.
-- WeChat, QQ, and WhatsApp unread badge widgets that auto-hide when the apps are not running.
+- WeChat, QQ, WhatsApp, and Telegram unread badge widgets that auto-hide when the apps are not running.
 - Icon-only caffeine widget for toggling `caffeinate -dimsu`.
+- Optional `Loon` watchdog folder for users who rely on `Loon 2.app` on macOS.
 
 ## Requirements
 
@@ -30,6 +32,7 @@ Chinese documentation: [README_CN.md](README_CN.md)
 - Lua 5.5 and the SketchyBar Lua bridge from [SbarLua](https://github.com/FelixKratz/SbarLua)
 - Xcode Command Line Tools, used to build helper binaries and the Swift wallpaper color helper
 - Hack Nerd Font for the WeChat/QQ icons
+- `sketchybar-app-font` for the app icons shown in spaces and the front-app item
 
 ## Important Warning
 
@@ -40,7 +43,7 @@ Read this before running it:
 - The script directly edits the system TCC database at `/Library/Application Support/com.apple.TCC/TCC.db`.
 - It asks for an administrator password and writes Accessibility allow rows manually.
 - It re-signs the Homebrew-installed SketchyBar binary with a local self-signed Code Signing certificate.
-- This is a machine-local workaround for a macOS TCC/signature mismatch. It is not an official Apple or SketchyBar flow.
+- This is a workaround for a macOS TCC/signature mismatch. It is not an official Apple or SketchyBar flow.
 - Homebrew upgrades replace the SketchyBar binary, so the signature and TCC code requirement can stop matching. Run the script again after every SketchyBar upgrade.
 - Back up the TCC database before experimenting further, and prefer rebooting/logging out after major permission changes if macOS behaves inconsistently.
 
@@ -85,7 +88,58 @@ cd ~/.config/sketchybar
 
 The older app-wrapper script, `scripts/sync_sketchybar_app.sh`, remains available as a fallback. It builds `SketchyBar.app`, signs it, compiles `scripts/wallpaper_color.swift`, installs the dedicated `com.hcy.sketchybar` LaunchAgent, and reloads SketchyBar.
 
-`SketchyBar.app` is intentionally ignored by git because it contains a local copy of the Homebrew binary and a local ad-hoc signature. It should be regenerated on each machine instead of committed.
+`SketchyBar.app` is intentionally ignored by git because it contains a generated Homebrew binary copy and an ad-hoc signature. It should be regenerated per installation instead of committed.
+
+## Fonts
+
+This repo bundles the redistributable fonts needed by the config:
+
+- [fonts/HackNerdFont-Regular.ttf](fonts/HackNerdFont-Regular.ttf)
+- [fonts/sketchybar-app-font.ttf](fonts/sketchybar-app-font.ttf)
+
+Install them with:
+
+```sh
+cp fonts/*.ttf ~/Library/Fonts/
+```
+
+`SF Pro` and `SF Mono` are still referenced by the config, but they are Apple fonts and are not committed to this repository.
+
+## Proxy Detection
+
+The Wi-Fi widget also acts as a proxy status indicator.
+
+- Supported apps: `Clash Verge`, `Quantumult X`, `Shadowrocket`, and `Loon`
+- The popup includes `Proxy: <app> <status>`
+- The Wi-Fi icon color reflects the current proxy state when network connectivity is up
+- Detection is whitelist-based, so unrelated VPN tools such as `Tailscale` or `AdGuard` are intentionally ignored
+
+Current logic prefers macOS network service state from `scutil --nc list`, then combines that with:
+
+- whether a `utun` interface exists
+- whether the expected helper / tunnel process for the detected proxy app exists
+
+State meanings:
+
+- `on`: whitelisted proxy is connected, `utun` exists, and the expected process exists
+- `off`: no active whitelisted proxy connection
+- `error`: proxy VPN looks connected, but the expected helper / tunnel process is missing
+
+Important Loon note:
+
+- The status item displays `Loon`
+- The detection supports both `Loon.app` and `Loon 2.app`
+- The current priority remains practical compatibility with `Loon 2.app`, because the native macOS `Loon.app` may still be unstable for some users
+- The UI label stays `Loon` regardless of which bundle is detected
+
+## Loon 2 Watchdog
+
+The repo includes a standalone [loon2-watchdog](loon2-watchdog) folder for users who want to keep `Loon 2.app` alive on macOS.
+
+- It checks whether `LoonTunnelProvider` is still alive
+- If the provider has dropped, it reopens `Loon 2` in the background
+- It is intentionally separate from the SketchyBar config so it can be used or removed independently
+- It currently targets `Loon 2.app`
 
 ## Generated Files
 

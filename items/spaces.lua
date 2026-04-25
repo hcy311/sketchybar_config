@@ -4,8 +4,67 @@ local settings = require("settings")
 local app_icons = require("helpers.app_icons")
 
 local spaces = {}
+local total_spaces = 10
 
-for i = 1, 10, 1 do
+local function icon_for_app(app)
+  local lookup = app_icons[app]
+  return lookup == nil and app_icons["Default"] or lookup
+end
+
+local function set_space_icons(space_index, apps)
+  local space = spaces[space_index]
+  if not space then
+    return
+  end
+
+  local icon_line = ""
+  for _, app in ipairs(apps) do
+    icon_line = icon_line .. icon_for_app(app)
+  end
+
+  if icon_line == "" then
+    icon_line = " —"
+  end
+
+  sbar.animate("tanh", 10, function()
+    space:set({ label = icon_line })
+  end)
+end
+
+local function refresh_space_icons()
+  local command = [[yabai -m query --windows 2>/dev/null | jq -r '
+    map(select((.app // "") != "" and (.space // 0) > 0 and ((."is-minimized" // false) | not) and ((."is-hidden" // false) | not) and ((."is-visible" // true)))) |
+    reduce .[] as $w ({}; .[($w.space | tostring)] += [($w.app // "")]) |
+    to_entries[] |
+    "\(.key)\t\(.value | unique | join("\u001f"))"
+  ']]
+
+  sbar.exec(command, function(output)
+    local apps_by_space = {}
+
+    for line in output:gmatch("[^\r\n]+") do
+      local space_id, apps = line:match("^(%d+)\t(.*)$")
+      if space_id then
+        local index = tonumber(space_id)
+        apps_by_space[index] = {}
+
+        if apps ~= "" then
+          for app in apps:gmatch("[^\31]+") do
+            if app ~= "" then
+              table.insert(apps_by_space[index], app)
+            end
+          end
+        end
+      end
+    end
+
+    for i = 1, total_spaces, 1 do
+      set_space_icons(i, apps_by_space[i] or {})
+    end
+  end)
+end
+
+for i = 1, total_spaces, 1 do
   local space = sbar.add("space", "space." .. i, {
     space = i,
     icon = {
@@ -121,32 +180,9 @@ local spaces_indicator = sbar.add("item", {
   }
 })
 
-space_window_observer:subscribe("space_windows_change", function(env)
-  if not env.INFO or not env.INFO.apps or not env.INFO.space then
-    return
-  end
+space_window_observer:subscribe({ "space_windows_change", "space_change", "system_woke", "forced" }, refresh_space_icons)
 
-  local space = spaces[tonumber(env.INFO.space)]
-  if not space then
-    return
-  end
-
-  local icon_line = ""
-  local no_app = true
-  for app, count in pairs(env.INFO.apps) do
-    no_app = false
-    local lookup = app_icons[app]
-    local icon = ((lookup == nil) and app_icons["Default"] or lookup)
-    icon_line = icon_line .. icon
-  end
-
-  if (no_app) then
-    icon_line = " —"
-  end
-  sbar.animate("tanh", 10, function()
-    space:set({ label = icon_line })
-  end)
-end)
+refresh_space_icons()
 
 spaces_indicator:subscribe("swap_menus_and_spaces", function(env)
   local currently_on = spaces_indicator:query().icon.value == icons.switch.on
