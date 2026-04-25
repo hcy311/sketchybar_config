@@ -23,7 +23,7 @@ Chinese documentation: [README_CN.md](README_CN.md)
 - Media widget for Spotify/Music playback artwork and controls.
 - WeChat, QQ, WhatsApp, and Telegram unread badge widgets that auto-hide when the apps are not running.
 - Icon-only caffeine widget for toggling `caffeinate -dimsu`.
-- Optional `Loon` watchdog folder for users who rely on `Loon 2.app` on macOS.
+- Optional `Loon` watchdog folder for users who rely on the App Store / iPad build of Loon on macOS.
 
 ## Requirements
 
@@ -129,17 +129,22 @@ Important Loon note:
 
 - The status item displays `Loon`
 - The detection supports both `Loon.app` and `Loon 2.app`
-- The current priority remains practical compatibility with `Loon 2.app`, because the native macOS `Loon.app` may still be unstable for some users
+- The App Store / iPad build may appear under either name depending on install history and how macOS exposed the bundle
+- The native macOS build and the App Store / iPad build can therefore share similar display names, so the implementation matches both known bundle identifiers
+- Known bundle ids:
+  - `com.loon.Loon` for the native macOS build
+  - `com.ruikq.decar` for the App Store / iPad build
 - The UI label stays `Loon` regardless of which bundle is detected
 
 ## Loon 2 Watchdog
 
-The repo includes a standalone [loon2-watchdog](loon2-watchdog) folder for users who want to keep `Loon 2.app` alive on macOS.
+The repo includes a standalone [loon2-watchdog](loon2-watchdog) folder for users who want to keep Loon alive on macOS.
 
 - It checks whether `LoonTunnelProvider` is still alive
-- If the provider has dropped, it reopens `Loon 2` in the background
+- If the provider has dropped, it reopens the configured Loon target in the background
 - It is intentionally separate from the SketchyBar config so it can be used or removed independently
-- It currently targets `Loon 2.app`
+- It uses bundle ids instead of guessing by app name
+- The default watchdog target is the App Store / iPad build bundle id `com.ruikq.decar`
 
 ## Generated Files
 

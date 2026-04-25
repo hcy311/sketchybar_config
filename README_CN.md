@@ -23,7 +23,7 @@ English documentation: [README.md](README.md)
 - 媒体组件，支持 Spotify / Music 的封面、歌曲信息和控制按钮。
 - 微信、QQ、WhatsApp、Telegram 未读数显示，应用未运行时自动隐藏。
 - 纯图标咖啡因组件，点击切换 `caffeinate -dimsu` 防睡眠状态。
-- 额外提供可独立使用的 `Loon` 保活目录，适合在 macOS 上依赖 `Loon 2.app` 的场景。
+- 额外提供可独立使用的 `Loon` 保活目录，适合在 macOS 上依赖 App Store / iPad 版 Loon 的场景。
 
 ## 依赖
 
@@ -129,17 +129,22 @@ cp fonts/*.ttf ~/Library/Fonts/
 
 - bar / popup 里显示的是 `Loon`
 - 检测同时支持 `Loon.app` 和 `Loon 2.app`
-- 目前实现仍然优先兼容 `Loon 2.app`，因为原生 macOS 版 `Loon.app` 对部分用户来说仍不稳定
+- App Store / iPad 版 Loon 在不同安装历史或系统暴露方式下，可能显示成 `Loon.app` 或 `Loon 2.app`
+- 因为原生 macOS 版和 App Store / iPad 版在名称上可能接近，所以实现同时匹配两套已知 bundle 标识
+- 已知 bundle id：
+  - 原生 macOS 版：`com.loon.Loon`
+  - App Store / iPad 版：`com.ruikq.decar`
 - 但无论实际命中哪个 bundle，界面显示名统一写成 `Loon`
 
 ## Loon 2 保活
 
-仓库里额外提供了独立的 [loon2-watchdog](loon2-watchdog) 目录，给在 macOS 上依赖 `Loon 2.app` 的场景使用。
+仓库里额外提供了独立的 [loon2-watchdog](loon2-watchdog) 目录，给在 macOS 上依赖 Loon 的场景使用。
 
 - 定时检查 `LoonTunnelProvider` 是否仍然存在
-- 如果 provider 掉了，就后台重新打开 `Loon 2`
+- 如果 provider 掉了，就后台重新打开配置好的目标 Loon app
 - 它与 SketchyBar 主配置解耦，可以独立启用或移除
-- 当前保活脚本针对的是 `Loon 2.app`
+- 它使用 bundle id，而不是靠 app 名猜测
+- 默认保活目标是 App Store / iPad 版 bundle id `com.ruikq.decar`
 
 ## 本地生成文件
 
