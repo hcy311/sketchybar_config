@@ -12,29 +12,49 @@ local connectivity_type = "off"
 local proxy_state = "off"
 local proxy_app_name = "None"
 local notified_proxy_key = nil
+local previous_proxy_app_name = "None"
+local previous_proxy_state = "off"
+local parse_proxy_names
+local update_proxy_popup
 
 local proxy_detectors = {
   {
     name = "Loon",
+    bundle_id = "com.ruikq.decar",
+    app_name = "Loon",
     scutil_match = "com.ruikq.decar|com.loon.Loon|Loon",
     process = "pgrep -f 'LoonTunnelProvider' >/dev/null 2>&1 || pgrep -f 'com.loon.Loon.LoonHelper' >/dev/null 2>&1",
   },
   {
     name = "Shadowrocket",
+    bundle_id = "com.maoying.shadowrocket",
+    app_name = "Shadowrocket",
     scutil_match = "Shadowrocket",
     process = "pgrep -f 'Shadowrocket' >/dev/null 2>&1",
   },
   {
     name = "Quantumult X",
+    bundle_id = "com.crossutility.quantumult-x",
+    app_name = "Quantumult X",
     scutil_match = "Quantumult X",
     process = "pgrep -f 'Quantumult X' >/dev/null 2>&1 || pgrep -f 'QuantumultXHelper' >/dev/null 2>&1",
   },
   {
     name = "Clash Verge",
+    bundle_id = "io.github.clash-verge-rev.clash-verge-rev",
+    app_name = "Clash Verge",
     scutil_match = "clash-verge|Clash Verge|io.github.clash-verge",
     process = "pgrep -f 'Clash Verge' >/dev/null 2>&1 || pgrep -f 'clash-verge' >/dev/null 2>&1 || pgrep -f 'ClashVerge' >/dev/null 2>&1 || pgrep -f 'clash-verge-service' >/dev/null 2>&1",
   },
 }
+
+local proxy_apps_by_name = {}
+for _, detector in ipairs(proxy_detectors) do
+  proxy_apps_by_name[detector.name] = {
+    bundle_id = detector.bundle_id,
+    app_name = detector.app_name,
+  }
+end
 
 local wifi_up = sbar.add("item", "widgets.wifi1", {
   position = "right",
@@ -200,6 +220,41 @@ local proxy = sbar.add("item", {
   },
 })
 
+local proxy_detail = sbar.add("item", {
+  position = "popup." .. wifi_bracket.name,
+  icon = {
+    align = "left",
+    string = "",
+    width = popup_width / 3,
+  },
+  label = {
+    string = "",
+    width = popup_width * 2 / 3,
+    align = "right",
+    max_chars = 64,
+  },
+  drawing = false,
+})
+
+local proxy_multi_items = {}
+for index = 1, #proxy_detectors do
+  proxy_multi_items[index] = sbar.add("item", {
+    position = "popup." .. wifi_bracket.name,
+    icon = {
+      align = "left",
+      string = "",
+      width = popup_width / 3,
+    },
+    label = {
+      string = "",
+      width = popup_width * 2 / 3,
+      align = "right",
+      max_chars = 32,
+    },
+    drawing = false,
+  })
+end
+
 sbar.add("item", { position = "right", width = settings.group_paddings })
 
 local function connectivity_probe_command()
@@ -237,6 +292,8 @@ local function apply_wifi_icon_state()
   if connectivity_type ~= "off" then
     if proxy_state == "on" then
       icon_color = colors.green
+    elseif proxy_state == "warning" then
+      icon_color = colors.yellow
     elseif proxy_state == "error" then
       icon_color = colors.orange
     else
@@ -265,10 +322,22 @@ local function refresh_connectivity()
 end
 
 local function proxy_probe_command()
-  local parts = {}
+  local count_parts = {}
+  local choice_parts = {}
   for _, detector in ipairs(proxy_detectors) do
     local escaped_name = detector.name:gsub("'", [['"'"']])
-    table.insert(parts, [[
+    table.insert(count_parts, [[
+      sc_line="$(scutil --nc list 2>/dev/null | egrep -i ']] .. detector.scutil_match .. [[' | head -n 1)"
+      if [ -n "$sc_line" ] && printf '%s' "$sc_line" | grep -q '(Connected)'; then
+        connected_count=$((connected_count + 1))
+        if [ -n "$connected_names" ]; then
+          connected_names="$connected_names, ]] .. escaped_name .. [["
+        else
+          connected_names="]] .. escaped_name .. [["
+        fi
+      fi
+    ]])
+    table.insert(choice_parts, [[
       sc_line="$(scutil --nc list 2>/dev/null | egrep -i ']] .. detector.scutil_match .. [[' | head -n 1)"
       if [ -n "$sc_line" ]; then
         utun_up=0
@@ -280,7 +349,6 @@ local function proxy_probe_command()
         '; then
           utun_up=1
         fi
-
         if printf '%s' "$sc_line" | grep -q '(Connected)'; then
           if [ "$utun_up" -eq 1 ]; then
             if ]] .. detector.process .. [[; then
@@ -291,22 +359,38 @@ local function proxy_probe_command()
           else
             echo ']] .. escaped_name .. [[	off'
           fi
-        elif [ "$utun_up" -eq 0 ]; then
-          echo ']] .. escaped_name .. [[	off'
-        else
-          echo ']] .. escaped_name .. [[	off'
+          exit 0
         fi
-        exit 0
-      fi
-
-      if ]] .. detector.process .. [[; then
-        echo ']] .. escaped_name .. [[	off'
-        exit 0
       fi
     ]])
   end
 
-  return table.concat(parts, "\n") .. "\necho 'None\toff'\n"
+  return [[
+connected_count=0
+connected_names=""
+]] .. table.concat(count_parts, "\n") .. [[
+
+if [ "$connected_count" -gt 1 ]; then
+  echo "Multiple Proxy $connected_names	warning"
+  exit 0
+fi
+]] .. table.concat(choice_parts, "\n") .. [[
+utun_up=0
+if ifconfig 2>/dev/null | awk '
+  /^[a-z0-9]+: flags=/ { iface=$1; sub(":", "", iface) }
+  /^utun[0-9]+:/ { current=iface }
+  current ~ /^utun[0-9]+$/ && /inet / { found=1 }
+  END { exit(found ? 0 : 1) }
+'; then
+  utun_up=1
+fi
+
+if [ "$utun_up" -eq 0 ]; then
+  echo 'None	off'
+else
+  echo 'None	off'
+fi
+]]
 end
 
 wifi_up:subscribe("network_update", function(env)
@@ -346,8 +430,28 @@ local function notify_proxy_state_change(app_name, state)
   local title = app_name == "None" and "Proxy" or app_name
   local body = nil
 
-  if state == "on" then
+  local prev_names = parse_proxy_names(previous_proxy_app_name, previous_proxy_state)
+  local curr_names = parse_proxy_names(app_name, state)
+  local prev_lookup = {}
+  local curr_lookup = {}
+  for _, name in ipairs(prev_names) do prev_lookup[name] = true end
+  for _, name in ipairs(curr_names) do curr_lookup[name] = true end
+
+  local removed = {}
+  for _, name in ipairs(prev_names) do
+    if not curr_lookup[name] then
+      table.insert(removed, name)
+    end
+  end
+
+  if previous_proxy_state == "warning" and #removed > 0 then
+    local active = (#curr_names > 0) and table.concat(curr_names, ", ") or "None"
+    title = "Proxy"
+    body = "Closed: " .. table.concat(removed, ", ") .. ". Active: " .. active
+  elseif state == "on" then
     body = "Proxy connected"
+  elseif state == "warning" then
+    body = "Multiple proxy services are connected"
   elseif state == "error" then
     body = "VPN is connected but proxy helper/tunnel is missing"
   elseif state == "off" then
@@ -375,7 +479,85 @@ local function refresh_proxy_state()
     proxy_state = status
     apply_wifi_icon_state()
     notify_proxy_state_change(proxy_app_name, proxy_state)
+    previous_proxy_app_name = proxy_app_name
+    previous_proxy_state = proxy_state
+    if wifi_bracket:query().popup.drawing == "on" then
+      update_proxy_popup()
+    end
   end)
+end
+
+parse_proxy_names = function(name, current_state)
+  if current_state == "warning" then
+    local list = name:gsub("^Multiple Proxy%s*", "")
+    local names = {}
+    for part in list:gmatch("[^,]+") do
+      local trimmed = part:gsub("^%s+", ""):gsub("%s+$", "")
+      if trimmed ~= "" then
+        table.insert(names, trimmed)
+      end
+    end
+    return names
+  end
+
+  if current_state == "off" or name == "None" then
+    return {}
+  end
+
+  return { name }
+end
+
+local function proxy_label_text()
+  if proxy_state == "off" then
+    return "off"
+  end
+
+  if proxy_state == "warning" then
+    return "Multiple"
+  end
+
+  if proxy_app_name == "None" then
+    return "None"
+  end
+
+  return proxy_app_name .. " " .. proxy_state
+end
+
+local function proxy_detail_text()
+  return ""
+end
+
+local function open_proxy_app(name)
+  local app = proxy_apps_by_name[name]
+  if not app then
+    return
+  end
+
+  sbar.exec("open -g -b " .. app.bundle_id .. " >/dev/null 2>&1 || open -g -a " .. string.format("%q", app.app_name))
+end
+
+update_proxy_popup = function()
+  proxy:set({
+    label = {
+      string = proxy_label_text(),
+    },
+  })
+
+  local detail = proxy_detail_text()
+  proxy_detail:set({
+    drawing = detail ~= "",
+    label = { string = detail },
+  })
+
+  local multiple_names = parse_proxy_names(proxy_app_name, proxy_state)
+  for index, item in ipairs(proxy_multi_items) do
+    local app_name = proxy_state == "warning" and multiple_names[index] or nil
+    item:set({
+      drawing = app_name ~= nil,
+      icon = { string = "" },
+      label = { string = app_name or "" },
+    })
+  end
 end
 
 local function hide_details()
@@ -412,11 +594,7 @@ local function toggle_details()
     sbar.exec("networksetup -getinfo Wi-Fi | awk -F 'Router: ' '/^Router: / {print $2}'", function(result)
       router:set({ label = result })
     end)
-    proxy:set({
-      label = {
-        string = proxy_app_name == "None" and "None" or (proxy_app_name .. " " .. proxy_state),
-      },
-    })
+    update_proxy_popup()
   else
     hide_details()
   end
@@ -445,7 +623,19 @@ hostname:subscribe("mouse.clicked", copy_label_to_clipboard)
 ip:subscribe("mouse.clicked", copy_label_to_clipboard)
 mask:subscribe("mouse.clicked", copy_label_to_clipboard)
 router:subscribe("mouse.clicked", copy_label_to_clipboard)
-proxy:subscribe("mouse.clicked", copy_label_to_clipboard)
+proxy:subscribe("mouse.clicked", function()
+  if proxy_state ~= "warning" and proxy_app_name ~= "None" then
+    open_proxy_app(proxy_app_name)
+  end
+end)
+for index, item in ipairs(proxy_multi_items) do
+  item:subscribe("mouse.clicked", function()
+    local app_name = parse_proxy_names(proxy_app_name, proxy_state)[index]
+    if app_name then
+      open_proxy_app(app_name)
+    end
+  end)
+end
 
 refresh_proxy_state()
 refresh_connectivity()

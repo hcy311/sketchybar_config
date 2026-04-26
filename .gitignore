@@ -11,5 +11,9 @@ SketchyBar.app/
 # Swift build output generated from scripts/wallpaper_color.swift
 scripts/wallpaper_color
 
+# Local virtualenvs and ad-hoc logs
+.venv*/
+*.log
+
 # Local rescue backup from repair session
 *.backup

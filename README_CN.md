@@ -17,7 +17,7 @@ English documentation: [README.md](README.md)
 - 日期和时间组件。
 - 电池组件，点击可显示剩余时间。
 - 音量组件，支持弹出输出设备列表和滚轮调节音量。
-- Wi-Fi / 网络速率组件，点击可查看网络详情，并支持点击复制字段。
+- Wi-Fi / 网络速率组件，点击可查看网络详情、复制字段，并支持点击代理项直接打开对应 app。
 - Wi-Fi popup 内置通用代理检测，支持 Clash Verge、Quantumult X、Shadowrocket 和 Loon。
 - CPU 图表组件，使用本地 helper 事件提供器。
 - 媒体组件，支持 Spotify / Music 的封面、歌曲信息和控制按钮。
@@ -111,6 +111,8 @@ cp fonts/*.ttf ~/Library/Fonts/
 
 - 支持：`Clash Verge`、`Quantumult X`、`Shadowrocket`、`Loon`
 - popup 里会显示 `Proxy: <app> <status>`
+- 单个代理活动时，点击 `Proxy:` 这一行会直接打开对应 app
+- 多个代理同时活动时，popup 会把每个代理拆成独立可点击行
 - 当网络本身在线时，Wi-Fi 图标颜色会反映当前代理状态
 - 检测采用白名单机制，所以像 `Tailscale`、`AdGuard` 这类非目标代理 VPN 不会被算进去
 
@@ -136,7 +138,7 @@ cp fonts/*.ttf ~/Library/Fonts/
   - App Store / iPad 版：`com.ruikq.decar`
 - 但无论实际命中哪个 bundle，界面显示名统一写成 `Loon`
 
-## Loon 2 保活
+## Loon 保活
 
 仓库里额外提供了独立的 [loon2-watchdog](loon2-watchdog) 目录，给在 macOS 上依赖 Loon 的场景使用。
 
@@ -153,6 +155,8 @@ cp fonts/*.ttf ~/Library/Fonts/
 - `SketchyBar.app/`
 - `helpers/**/bin/`
 - `scripts/wallpaper_color`
+- `.venv*/`
+- `*.log`
 - `.DS_Store`
 
 ## 常用命令

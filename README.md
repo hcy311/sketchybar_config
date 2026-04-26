@@ -17,7 +17,7 @@ Chinese documentation: [README_CN.md](README_CN.md)
 - Calendar and clock widget.
 - Battery widget with remaining-time popup.
 - Volume widget with output device popup and scroll-to-adjust support.
-- Wi-Fi/network throughput widget with popup details and click-to-copy fields.
+- Wi-Fi/network throughput widget with popup details, click-to-copy fields, and clickable proxy app entries.
 - Wi-Fi popup with generalized proxy detection for Clash Verge, Quantumult X, Shadowrocket, and Loon.
 - CPU graph widget using a small local event provider.
 - Media widget for Spotify/Music playback artwork and controls.
@@ -111,6 +111,8 @@ The Wi-Fi widget also acts as a proxy status indicator.
 
 - Supported apps: `Clash Verge`, `Quantumult X`, `Shadowrocket`, and `Loon`
 - The popup includes `Proxy: <app> <status>`
+- When a single proxy is active, clicking the `Proxy:` row opens that app
+- When multiple proxies are active, the popup lists each app on its own clickable row
 - The Wi-Fi icon color reflects the current proxy state when network connectivity is up
 - Detection is whitelist-based, so unrelated VPN tools such as `Tailscale` or `AdGuard` are intentionally ignored
 
@@ -136,7 +138,7 @@ Important Loon note:
   - `com.ruikq.decar` for the App Store / iPad build
 - The UI label stays `Loon` regardless of which bundle is detected
 
-## Loon 2 Watchdog
+## Loon Watchdog
 
 The repo includes a standalone [loon2-watchdog](loon2-watchdog) folder for users who want to keep Loon alive on macOS.
 
@@ -153,6 +155,8 @@ The following files are generated locally and ignored:
 - `SketchyBar.app/`
 - `helpers/**/bin/`
 - `scripts/wallpaper_color`
+- `.venv*/`
+- `*.log`
 - `.DS_Store`
 
 ## Useful Commands
