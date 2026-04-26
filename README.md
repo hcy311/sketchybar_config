@@ -204,7 +204,6 @@ which sketchybar
 Check the LaunchAgent target:
 
 ```sh
-launchctl print gui/$(id -u)/com.hcy.sketchybar
 launchctl print gui/$(id -u)/homebrew.mxcl.sketchybar
 ```
 

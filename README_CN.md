@@ -204,7 +204,6 @@ which sketchybar
 检查 LaunchAgent 实际启动目标：
 
 ```sh
-launchctl print gui/$(id -u)/com.hcy.sketchybar
 launchctl print gui/$(id -u)/homebrew.mxcl.sketchybar
 ```
 
