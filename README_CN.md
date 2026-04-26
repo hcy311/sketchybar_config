@@ -105,6 +105,26 @@ cp fonts/*.ttf ~/Library/Fonts/
 
 `SF Pro` 和 `SF Mono` 仍然由配置引用，但它们属于 Apple 字体，不会提交到这个仓库里。
 
+社区字体说明：
+
+- 这套配置使用社区维护的 `sketchybar-app-font`
+- `Canva` 目前没有社区独立 glyph，所以这里故意把它映射到 `:keynote:`，作为本地 override
+- 本地应用别名和 override 统一放在 `helpers/app_icons_overrides.lua`
+
+如果你想在保留本地 override 的前提下更新社区字体和基础映射，可以运行：
+
+```sh
+./scripts/update_sketchybar_app_font.sh
+```
+
+这个脚本会更新：
+
+- `fonts/sketchybar-app-font.ttf`
+- `~/Library/Fonts/sketchybar-app-font.ttf`
+- `helpers/app_icons_base.lua`
+
+它不会覆盖 `helpers/app_icons_overrides.lua`。
+
 ## 代理检测
 
 现在 Wi-Fi 组件同时承担代理状态指示功能。

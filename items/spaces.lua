@@ -5,6 +5,11 @@ local app_icons = require("helpers.app_icons")
 
 local spaces = {}
 local total_spaces = 10
+local floating_chat_apps = {
+  WeChat = true,
+  QQ = true,
+}
+local floating_chat_cache = {}
 
 local function icon_for_app(app)
   local lookup = app_icons[app]
@@ -32,30 +37,87 @@ local function set_space_icons(space_index, apps)
 end
 
 local function refresh_space_icons()
-  local command = [[yabai -m query --windows 2>/dev/null | jq -r '
-    map(select((.app // "") != "" and (.space // 0) > 0 and ((."is-minimized" // false) | not) and ((."is-hidden" // false) | not) and ((."is-visible" // true)))) |
-    reduce .[] as $w ({}; .[($w.space | tostring)] += [($w.app // "")]) |
-    to_entries[] |
-    "\(.key)\t\(.value | unique | join("\u001f"))"
-  ']]
+  local command = [[
+current_space="$(yabai -m query --spaces 2>/dev/null | jq -r '.[] | select(."has-focus" == true) | .index' | head -n 1)"
+printf '__CURRENT__\t%s\n' "${current_space:-0}"
+yabai -m query --windows 2>/dev/null | jq -r '
+  map(select(
+    (.app // "") != "" and
+    (.space // 0) > 0 and
+    ((."is-minimized" // false) | not) and
+    ((."is-hidden" // false) | not) and
+    ((.role // "") == "AXWindow") and
+    ((.subrole // "") == "AXStandardWindow")
+  ))[] |
+  "\(.space)\t\(.app // "")\t\((."is-floating" // false) | tostring)\t\((."is-visible" // false) | tostring)"
+']]
 
   sbar.exec(command, function(output)
     local apps_by_space = {}
+    local current_space = 0
+    local space_app_state = {}
 
     for line in output:gmatch("[^\r\n]+") do
-      local space_id, apps = line:match("^(%d+)\t(.*)$")
-      if space_id then
-        local index = tonumber(space_id)
-        apps_by_space[index] = {}
+      local focused_space = line:match("^__CURRENT__\t(%d+)$")
+      if focused_space then
+        current_space = tonumber(focused_space) or 0
+      else
+        local space_id, app, is_floating, is_visible = line:match("^(%d+)\t([^\t]*)\t([^\t]+)\t([^\t]+)$")
+        if space_id and app and app ~= "" then
+          local index = tonumber(space_id)
+          local state = space_app_state[index] or {}
+          space_app_state[index] = state
 
-        if apps ~= "" then
-          for app in apps:gmatch("[^\31]+") do
-            if app ~= "" then
-              table.insert(apps_by_space[index], app)
+          local app_state = state[app] or {
+            visible = false,
+            normal = false,
+          }
+          state[app] = app_state
+
+          if is_floating == "true" then
+            if is_visible == "true" then
+              app_state.visible = true
             end
+          else
+            app_state.normal = true
           end
         end
       end
+    end
+
+    for i = 1, total_spaces do
+      local state = space_app_state[i] or {}
+      local apps = {}
+      local cache = floating_chat_cache[i] or {}
+      floating_chat_cache[i] = cache
+
+      for app, app_state in pairs(state) do
+        if app_state.normal then
+          table.insert(apps, app)
+        elseif floating_chat_apps[app] then
+          if app_state.visible then
+            cache[app] = true
+            table.insert(apps, app)
+          elseif current_space == i then
+            cache[app] = nil
+          elseif cache[app] then
+            table.insert(apps, app)
+          end
+        elseif app_state.visible then
+          table.insert(apps, app)
+        end
+      end
+
+      if current_space == i then
+        for app, _ in pairs(cache) do
+          if not state[app] or not state[app].visible then
+            cache[app] = nil
+          end
+        end
+      end
+
+      table.sort(apps)
+      apps_by_space[i] = apps
     end
 
     for i = 1, total_spaces, 1 do

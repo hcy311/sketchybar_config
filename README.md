@@ -105,6 +105,26 @@ cp fonts/*.ttf ~/Library/Fonts/
 
 `SF Pro` and `SF Mono` are still referenced by the config, but they are Apple fonts and are not committed to this repository.
 
+Community font note:
+
+- This config uses the community-maintained `sketchybar-app-font`
+- `Canva` does not currently ship with a dedicated community glyph, so it is intentionally mapped to `:keynote:` as a local override
+- Local app-name aliases and overrides live in `helpers/app_icons_overrides.lua`
+
+To update the community font and base mapping while keeping local overrides:
+
+```sh
+./scripts/update_sketchybar_app_font.sh
+```
+
+This updates:
+
+- `fonts/sketchybar-app-font.ttf`
+- `~/Library/Fonts/sketchybar-app-font.ttf`
+- `helpers/app_icons_base.lua`
+
+It does not overwrite `helpers/app_icons_overrides.lua`.
+
 ## Proxy Detection
 
 The Wi-Fi widget also acts as a proxy status indicator.
